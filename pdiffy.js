@@ -1,0 +1,3 @@
+const pdiffy = (tests) => {
+  tests();
+};
