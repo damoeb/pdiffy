@@ -1,9 +1,9 @@
-console.log(pdiffy);
+const pdiffy = require('../pdiffy');
 
 pdiffy(() => {
-  describe('example test', function() {
-    it('should be true', function() {
-      expect('foo').toBe('foo');
+  describe('example test', () => {
+    it('should be true', (done) => {
+      pdiffy.expect(done);
     });
   });
 });
