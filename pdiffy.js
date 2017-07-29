@@ -1,92 +1,99 @@
 const BlinkDiff = require('blink-diff');
 const _ = require('lodash');
 
-const cache = {};
-let options = {};
 const defaultOptions = {
   reportFolder: './reports',
   threshold: 100,
   waitForAngular: false,
+  waitBeforeScreenshotTime: 500
 };
-let testRunId = 0;
+let instanceCount = 0;
 
-const pdiffy = function (customOptions, jasmineBlock) {
-  _.assign(options, defaultOptions, customOptions);
-  const expectedUrl = options.expectedUrl;
-  const actualUrl = options.actualUrl;
+module.exports = {
+  create(customOptions, jasmineBlock) {
+    let expectId = 0;
+    instanceCount ++;
+    const instanceId = instanceCount;
 
-  // expected
-  describe('(expected run)', () => {
-    beforeEach(() => {
-      testRunId = 0;
-      browser.waitForAngularEnabled(options.waitForAngular);
-      browser.get(expectedUrl);
-    });
-    jasmineBlock();
-  });
+    return new function () {
+      const pdiffy = this;
+      const options = {};
+      const cache = {};
+      _.assign(options, defaultOptions, customOptions);
 
-  // actual
-  describe('(actual run)', () => {
-    beforeEach(() => {
-      testRunId = 0;
-      browser.waitForAngularEnabled(options.waitForAngular);
-      browser.get(actualUrl);
-    });
-    jasmineBlock();
-  });
-};
-
-pdiffy.expect = (done) => {
-  testRunId++;
-  const match = cache[testRunId];
-  if (typeof(match) === 'undefined') {
-
-    // create snapshot and cache
-    console.log(`cache #${testRunId}`);
-    pdiffy.takeScreenshot().then((imageExpected) => {
-      cache[testRunId] = imageExpected;
-      done();
-    });
-  } else {
-
-    // take snapshot and compare with cache result
-    const imageExpected = cache[testRunId];
-
-    pdiffy.takeScreenshot().then((imageActual) => {
-
-      const diff = new BlinkDiff({
-        imageA: imageExpected,
-        imageB: imageActual,
-
-        thresholdType: BlinkDiff.THRESHOLD_PERCENT,
-        threshold: options.threshold / 100,
-
-        // export the the images highlighting the difference
-        imageOutputPath: `${options.reportFolder}/${testRunId}.png`
+      // expected
+      describe('(expected run)', () => {
+        beforeEach(() => {
+          expectId = 0;
+          browser.waitForAngularEnabled(options.waitForAngular);
+          browser.get(options.expectedUrl);
+        });
+        jasmineBlock(pdiffy);
       });
 
-      diff.run((error, result) => {
-        if (error) {
-          throw error;
-        } else {
-          console.log(`compare #${testRunId} with ${result.differences} differences`);
-          expect(diff.hasPassed(result.code)).toBe(true);
-          done();
-        }
+      // actual
+      describe('(actual run)', () => {
+        beforeEach(() => {
+          expectId = 0;
+          browser.waitForAngularEnabled(options.waitForAngular);
+          browser.get(options.actualUrl);
+        });
+        jasmineBlock(pdiffy);
       });
 
-    }).catch(err => console.error(err));
+      pdiffy.takeScreenshot = () => {
+        return new Promise((resolve, reject) => {
+          browser.takeScreenshot()
+            .then((base64) => {
+              resolve(new Buffer(base64, 'base64'));
+            })
+            .catch(reject);
+        });
+      };
+
+      pdiffy.expect = (done) => {
+        setTimeout(() => {
+          expectId++;
+          const match = cache[expectId];
+          if (typeof(match) === 'undefined') {
+
+            // create snapshot and cache
+            console.log(`cache #${instanceId}-${expectId}`);
+            pdiffy.takeScreenshot().then((imageExpected) => {
+              cache[expectId] = imageExpected;
+              done();
+            });
+          } else {
+
+            // take snapshot and compare with cache result
+            const imageExpected = cache[expectId];
+
+            pdiffy.takeScreenshot().then((imageActual) => {
+              const diff = new BlinkDiff({
+                imageA: imageExpected,
+                imageB: imageActual,
+
+                thresholdType: BlinkDiff.THRESHOLD_PERCENT,
+                threshold: options.threshold / 100,
+
+                // export the the images highlighting the difference
+                imageOutputPath: `${options.reportFolder}/${instanceId}-${expectId}.png`
+              });
+
+              diff.run((error, result) => {
+                if (error) {
+                  throw error;
+                } else {
+                  console.log(`compare #${instanceId}-${expectId} with ${result.differences} differences`);
+                  expect(diff.hasPassed(result.code)).toBe(true);
+                  done();
+                }
+              });
+
+            }).catch(err => console.error(err));
+          }
+        }, options.waitBeforeScreenshotTime);
+      };
+    };
   }
 };
-
-pdiffy.takeScreenshot = () => {
-   return new Promise((resolve, reject) => {
-     browser.takeScreenshot()
-      .then((base64) => {
-        resolve(new Buffer(base64, 'base64'));
-      })
-     .catch(reject);
-  });
-};
-
-module.exports = pdiffy;
