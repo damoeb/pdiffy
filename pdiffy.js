@@ -1,42 +1,38 @@
 const BlinkDiff = require('blink-diff');
-const argv = require('yargs').argv;
-
-function usage() {
-  console.error('Usage: npm pdiffy --expected=[url] --actual=[url]');
-  process.exit(1);
-}
-
-if (!argv.expected || !argv.actual) {
-  usage();
-}
+const _ = require('lodash');
 
 const cache = {};
-const REPORTS_DIR = './reports';
-const THRESHOLD = 99;
+let options = {};
+const defaultOptions = {
+  reportFolder: './reports',
+  threshold: 100,
+  waitForAngular: false,
+};
 let testRunId = 0;
 
-const pdiffy = function (tests) {
-  const expectedUrl = argv.expected;
-  const actualUrl = argv.actual;
+const pdiffy = function (customOptions, jasmineBlock) {
+  _.assign(options, defaultOptions, customOptions);
+  const expectedUrl = options.expectedUrl;
+  const actualUrl = options.actualUrl;
 
   // expected
   describe('(expected run)', () => {
     beforeEach(() => {
       testRunId = 0;
-      browser.waitForAngularEnabled(false);
+      browser.waitForAngularEnabled(options.waitForAngular);
       browser.get(expectedUrl);
     });
-    tests();
+    jasmineBlock();
   });
 
   // actual
   describe('(actual run)', () => {
     beforeEach(() => {
       testRunId = 0;
-      browser.waitForAngularEnabled(false);
+      browser.waitForAngularEnabled(options.waitForAngular);
       browser.get(actualUrl);
     });
-    tests();
+    jasmineBlock();
   });
 };
 
@@ -63,10 +59,10 @@ pdiffy.expect = (done) => {
         imageB: imageActual,
 
         thresholdType: BlinkDiff.THRESHOLD_PERCENT,
-        threshold: THRESHOLD / 100,
+        threshold: options.threshold / 100,
 
         // export the the images highlighting the difference
-        imageOutputPath: `${REPORTS_DIR}/${testRunId}.png`
+        imageOutputPath: `${options.reportFolder}/${testRunId}.png`
       });
 
       diff.run((error, result) => {

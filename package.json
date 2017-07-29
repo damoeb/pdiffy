@@ -11,7 +11,7 @@
   "dependencies": {
     "blink-diff": "^1.0.13",
     "jasmine": "^2.6.0",
-    "protractor": "^5.1.2",
-    "yargs": "^8.0.2"
+    "lodash": "^4.17.4",
+    "protractor": "^5.1.2"
   }
 }
