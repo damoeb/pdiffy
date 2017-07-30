@@ -14,6 +14,7 @@ const defaultOptions = {
   strict: true // fails test if differences exist independent of similarityThreshold
 };
 let instanceCount = 0;
+let specId = 0;
 
 module.exports = {
   // see https://github.com/larrymyers/jasmine-reporters/blob/master/src/junit_reporter.js
@@ -25,14 +26,28 @@ module.exports = {
       return spec.fullName.startsWith(modes.evaluation);
     }
 
+    const specs = [];
+
     return {
       specDone(spec) {
         if (hasBeenExecutedInEvaluationMode(spec)) {
-          console.log('done', spec);
+          specs.push({
+            id: spec.id,
+            passed: spec.status === 'passed',
+            fullName: spec.fullName.replace(modes.evaluation, '').trim(),
+            message: spec.failedExpectations.map(expectation => expectation.message).join(', ')
+          });
         }
       },
       jasmineDone() {
-        console.log('write report');
+        const fs = require('fs');
+        fs.writeFile(`${options.outputFolder}/pdiffy-report.json`, JSON.stringify(specs), function(err) {
+          if(err) {
+            return console.log(err);
+          }
+
+          console.log('report saved!');
+        });
       }
     };
   },
@@ -93,7 +108,10 @@ module.exports = {
         });
       };
 
-      pdiffy.expect = (done) => {
+      pdiffy.expectSimilarity = (done) => {
+        const currentSpecId = specId;
+        specId ++;
+        // wait for animations
         setTimeout(() => {
           expectId++;
           const match = cache[expectId];
@@ -119,7 +137,7 @@ module.exports = {
                 threshold: options.similarityThreshold / 100,
 
                 // export the the images highlighting the difference
-                imageOutputPath: `${options.outputFolder}/${instanceId}-${expectId}.png`
+                imageOutputPath: `${options.outputFolder}/spec${currentSpecId}.png`
               });
 
               diff.run((error, diffResult) => {

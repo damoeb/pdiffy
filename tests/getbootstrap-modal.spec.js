@@ -3,8 +3,8 @@ const EC = protractor.ExpectedConditions;
 
 pdiffyFactory.createEnvironment(
   {
-    actualUrl: 'http://getbootstrap.com/javascript/',
-    expectedUrl: 'http://getbootstrap.com/javascript/#modals'
+    expectedUrl: 'http://getbootstrap.com/javascript/#modals',
+    actualUrl: 'http://getbootstrap.com/javascript/'
   },
   (pdiffy) => {
     describe('modal', () => {
@@ -17,7 +17,7 @@ pdiffyFactory.createEnvironment(
       });
 
       it('opens', (done) => {
-        pdiffy.expect(done);
+        pdiffy.expectSimilarity(done);
       });
     });
   });
