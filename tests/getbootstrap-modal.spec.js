@@ -1,7 +1,7 @@
 const pdiffyFactory = require('../pdiffy');
 const EC = protractor.ExpectedConditions;
 
-pdiffyFactory.create(
+pdiffyFactory.createEnvironment(
   {
     actualUrl: 'http://getbootstrap.com/javascript/',
     expectedUrl: 'http://getbootstrap.com/javascript/#modals'

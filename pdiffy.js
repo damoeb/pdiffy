@@ -1,44 +1,86 @@
 const BlinkDiff = require('blink-diff');
 const _ = require('lodash');
 
+const modes = {
+  preparation: '(preparation mode)',
+  evaluation: '(evaluation mode)'
+};
+
 const defaultOptions = {
-  reportFolder: './reports',
-  threshold: 100,
+  outputFolder: './reports',
+  similarityThreshold: 100,
   waitForAngular: false,
-  waitBeforeScreenshotTime: 500
+  waitBeforeScreenshotTime: 500,
+  strict: true // fails test if differences exist independent of similarityThreshold
 };
 let instanceCount = 0;
 
 module.exports = {
-  create(customOptions, jasmineBlock) {
+  // see https://github.com/larrymyers/jasmine-reporters/blob/master/src/junit_reporter.js
+  createReporter(customOptions) {
+    const options = {};
+    _.assign(options, defaultOptions, customOptions);
+
+    function hasBeenExecutedInEvaluationMode(spec) {
+      return spec.fullName.startsWith(modes.evaluation);
+    }
+
+    return {
+      specDone(spec) {
+        if (hasBeenExecutedInEvaluationMode(spec)) {
+          console.log('done', spec);
+        }
+      },
+      jasmineDone() {
+        console.log('write report');
+      }
+    };
+  },
+  createEnvironment(customOptions, specsFn) {
     let expectId = 0;
-    instanceCount ++;
+    instanceCount++;
     const instanceId = instanceCount;
 
     return new function () {
       const pdiffy = this;
-      const options = {};
       const cache = {};
+      const options = {};
       _.assign(options, defaultOptions, customOptions);
 
+      beforeEach(function() {
+        browser.waitForAngularEnabled(options.waitForAngular);
+        jasmine.addMatchers({
+          toBeDoozy(util, customEqualityTesters) {
+            return {
+              compare: function({diff, diffResult}, expected) {
+                const passThreshold = diff.hasPassed(diffResult.code);
+                const passDifferences = !options.strict || diffResult.differences === 0;
+                return {
+                  pass: passThreshold && passDifferences,
+                  message: `${diffResult.differences} differences found`
+                };
+              }
+            }
+          }
+        });
+      });
+
       // expected
-      describe('(expected run)', () => {
+      describe(modes.preparation, () => {
         beforeEach(() => {
           expectId = 0;
-          browser.waitForAngularEnabled(options.waitForAngular);
           browser.get(options.expectedUrl);
         });
-        jasmineBlock(pdiffy);
+        specsFn(pdiffy);
       });
 
       // actual
-      describe('(actual run)', () => {
+      describe(modes.evaluation, () => {
         beforeEach(() => {
           expectId = 0;
-          browser.waitForAngularEnabled(options.waitForAngular);
           browser.get(options.actualUrl);
         });
-        jasmineBlock(pdiffy);
+        specsFn(pdiffy);
       });
 
       pdiffy.takeScreenshot = () => {
@@ -74,18 +116,19 @@ module.exports = {
                 imageB: imageActual,
 
                 thresholdType: BlinkDiff.THRESHOLD_PERCENT,
-                threshold: options.threshold / 100,
+                threshold: options.similarityThreshold / 100,
 
                 // export the the images highlighting the difference
-                imageOutputPath: `${options.reportFolder}/${instanceId}-${expectId}.png`
+                imageOutputPath: `${options.outputFolder}/${instanceId}-${expectId}.png`
               });
 
-              diff.run((error, result) => {
+              diff.run((error, diffResult) => {
                 if (error) {
                   throw error;
                 } else {
-                  console.log(`compare #${instanceId}-${expectId} with ${result.differences} differences`);
-                  expect(diff.hasPassed(result.code)).toBe(true);
+                  console.log(`compare #${instanceId}-${expectId} with ${diffResult.differences} differences`);
+                  expect({diff, diffResult}).toBeDoozy();
+
                   done();
                 }
               });
