@@ -14,7 +14,11 @@ const defaultOptions = {
   strict: true // fails test if differences exist independent of similarityThreshold
 };
 let instanceCount = 0;
-let specId = 0;
+let lastSpec = 0;
+function nextSpec() {
+  lastSpec ++;
+  return lastSpec;
+}
 
 module.exports = {
   // see https://github.com/larrymyers/jasmine-reporters/blob/master/src/junit_reporter.js
@@ -52,9 +56,9 @@ module.exports = {
     };
   },
   createEnvironment(customOptions, specsFn) {
-    let expectId = 0;
     instanceCount++;
     const instanceId = instanceCount;
+    let expectId = 0;
 
     return new function () {
       const pdiffy = this;
@@ -82,8 +86,10 @@ module.exports = {
 
       // expected
       describe(modes.preparation, () => {
-        beforeEach(() => {
+        beforeAll(() => {
           expectId = 0;
+        });
+        beforeEach(() => {
           browser.get(options.expectedUrl);
         });
         specsFn(pdiffy);
@@ -91,8 +97,10 @@ module.exports = {
 
       // actual
       describe(modes.evaluation, () => {
-        beforeEach(() => {
+        beforeAll(() => {
           expectId = 0;
+        });
+        beforeEach(() => {
           browser.get(options.actualUrl);
         });
         specsFn(pdiffy);
@@ -109,24 +117,25 @@ module.exports = {
       };
 
       pdiffy.expectSimilarity = (done) => {
-        const currentSpecId = specId;
-        specId ++;
+        const currentSpecId = expectId;
+        expectId ++;
         // wait for animations
         setTimeout(() => {
-          expectId++;
-          const match = cache[expectId];
+          const match = cache[currentSpecId];
           if (typeof(match) === 'undefined') {
 
             // create snapshot and cache
-            console.log(`cache #${instanceId}-${expectId}`);
+            console.log(`cache #${instanceId}-${currentSpecId}`);
             pdiffy.takeScreenshot().then((imageExpected) => {
-              cache[expectId] = imageExpected;
+              cache[currentSpecId] = imageExpected;
               done();
             });
           } else {
 
             // take snapshot and compare with cache result
-            const imageExpected = cache[expectId];
+            const imageExpected = cache[currentSpecId];
+
+            const specId = nextSpec();
 
             pdiffy.takeScreenshot().then((imageActual) => {
               const diff = new BlinkDiff({
@@ -137,14 +146,15 @@ module.exports = {
                 threshold: options.similarityThreshold / 100,
 
                 // export the the images highlighting the difference
-                imageOutputPath: `${options.outputFolder}/spec${currentSpecId}.png`
+                // The file name has to match the spec id, wich is not in our control
+                imageOutputPath: `${options.outputFolder}/spec${ specId }.png`
               });
 
               diff.run((error, diffResult) => {
                 if (error) {
                   throw error;
                 } else {
-                  console.log(`compare #${instanceId}-${expectId} with ${diffResult.differences} differences`);
+                  console.log(`compare #${instanceId}-${currentSpecId} with ${diffResult.differences} differences`);
                   expect({diff, diffResult}).toBeDoozy();
 
                   done();
