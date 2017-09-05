@@ -1,10 +1,10 @@
-const pdiffyFactory = require('./pdiffy');
+const pdiffy = require('./pdiffy');
 
 exports.config = {
   seleniumAddress: 'http://localhost:4444/wd/hub',
-  specs: ['tests/**/*.js'],
+  specs: ['examples/**/*.js'],
   framework: 'jasmine2',
   onPrepare: function() {
-    jasmine.getEnv().addReporter(pdiffyFactory.createReporter({}));
+    pdiffy.install();
   }
 };

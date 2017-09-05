@@ -1,5 +1,6 @@
 const BlinkDiff = require('blink-diff');
 const _ = require('lodash');
+const fs = require('fs');
 
 const modes = {
   preparation: '(preparation mode)',
@@ -13,15 +14,24 @@ const defaultOptions = {
   waitBeforeScreenshotTime: 500,
   strict: true // fails test if differences exist independent of similarityThreshold
 };
-let instanceCount = 0;
+let environmentCount = 0;
 let lastSpec = 0;
 function nextSpec() {
-  lastSpec ++;
+  lastSpec++;
   return lastSpec;
 }
 
 module.exports = {
+  /**
+   * Install pdiffy in jasmine
+   */
+  install() {
+    // install reporter
+    jasmine.getEnv().addReporter(this.createReporter({}));
+  },
+
   // see https://github.com/larrymyers/jasmine-reporters/blob/master/src/junit_reporter.js
+  // @private
   createReporter(customOptions) {
     const options = {};
     _.assign(options, defaultOptions, customOptions);
@@ -36,28 +46,32 @@ module.exports = {
       specDone(spec) {
         if (hasBeenExecutedInEvaluationMode(spec)) {
           specs.push({
-            id: spec.id,
-            passed: spec.status === 'passed',
+            status: spec.status,
             fullName: spec.fullName.replace(modes.evaluation, '').trim(),
             message: spec.failedExpectations.map(expectation => expectation.message).join(', ')
           });
         }
       },
       jasmineDone() {
-        const fs = require('fs');
-        fs.writeFile(`${options.outputFolder}/pdiffy-report.json`, JSON.stringify(specs), function(err) {
-          if(err) {
-            return console.log(err);
-          }
+        // generate report
+        const outFn = `${options.outputFolder}/pdiffy-report.html`;
+        const reportTemplate = fs.readFileSync('./pdiffy-report.template.html');
 
-          console.log('report saved!');
-        });
+        const specsWithId = _.map(specs, (specs, index) => { specs.id = `spec${index+1}`; return specs; });
+        const report = _.template(reportTemplate)({specs: specsWithId});
+        fs.writeFileSync(outFn, report);
+        console.log(`Pdiffy report saved to ${outFn}`);
       }
     };
   },
+  /**
+   * Defines pdiffy environment for the expected and actual test run
+   * @param customOptions a subset of default options
+   * @param specsFn the jasmine specs
+   */
   createEnvironment(customOptions, specsFn) {
-    instanceCount++;
-    const instanceId = instanceCount;
+    environmentCount++;
+    const environmentId = environmentCount;
     let expectId = 0;
 
     return new function () {
@@ -66,14 +80,14 @@ module.exports = {
       const options = {};
       _.assign(options, defaultOptions, customOptions);
 
-      beforeEach(function() {
+      beforeEach(function () {
         browser.waitForAngularEnabled(options.waitForAngular);
         jasmine.addMatchers({
-          toBeDoozy(util, customEqualityTesters) {
+          toBeIsomorph(util, customEqualityTesters) {
             return {
-              compare: function({diff, diffResult}, expected) {
+              compare: function ({diff, diffResult}, expected) {
                 const passThreshold = diff.hasPassed(diffResult.code);
-                const passDifferences = !options.strict || diffResult.differences === 0;
+                const passDifferences = options.strict && diffResult.differences === 0;
                 return {
                   pass: passThreshold && passDifferences,
                   message: `${diffResult.differences} differences found`
@@ -106,6 +120,7 @@ module.exports = {
         specsFn(pdiffy);
       });
 
+      // @private
       pdiffy.takeScreenshot = () => {
         return new Promise((resolve, reject) => {
           browser.takeScreenshot()
@@ -116,16 +131,20 @@ module.exports = {
         });
       };
 
+      /**
+       * Hook to pdiffy to compare the particular state based on screenshots
+       * @param done
+       */
       pdiffy.expectSimilarity = (done) => {
         const currentSpecId = expectId;
-        expectId ++;
+        expectId++;
         // wait for animations
         setTimeout(() => {
           const match = cache[currentSpecId];
           if (typeof(match) === 'undefined') {
 
             // create snapshot and cache
-            console.log(`cache #${instanceId}-${currentSpecId}`);
+            console.log(`cache #${currentSpecId} on environment #${environmentId}`);
             pdiffy.takeScreenshot().then((imageExpected) => {
               cache[currentSpecId] = imageExpected;
               done();
@@ -154,8 +173,8 @@ module.exports = {
                 if (error) {
                   throw error;
                 } else {
-                  console.log(`compare #${instanceId}-${currentSpecId} with ${diffResult.differences} differences`);
-                  expect({diff, diffResult}).toBeDoozy();
+                  console.log(`compare #${currentSpecId} with ${diffResult.differences} differences on environment #${environmentId}`);
+                  expect({diff, diffResult}).toBeIsomorph();
 
                   done();
                 }

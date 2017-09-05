@@ -1,19 +1,18 @@
-const pdiffyFactory = require('../pdiffy');
-const EC = protractor.ExpectedConditions;
+const pdiffy = require('../../pdiffy');
 
-pdiffyFactory.createEnvironment(
+pdiffy.createEnvironment(
   {
     expectedUrl: 'http://getbootstrap.com/javascript/#dropdowns',
     actualUrl: 'http://getbootstrap.com/javascript/#dropdowns'
   },
-  (pdiffy) => {
-    describe('dropdown', () => {
+  (pdiffyInstance) => {
+    describe('bootstrap dropdown', () => {
       beforeEach(() => {
         element(by.id('drop4')).click();
       });
 
       it('opens', (done) => {
-        pdiffy.expectSimilarity(done);
+        pdiffyInstance.expectSimilarity(done);
       });
     });
   });

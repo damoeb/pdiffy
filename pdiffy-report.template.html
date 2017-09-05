@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html>
+<!-- Latest compiled and minified CSS -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/lightbox2/2.9.0/css/lightbox.min.css">
+<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css">
+<body>
+
+<div style="max-width: 900px; margin: auto">
+
+  <h2><%= _.filter(specs, {status: 'failed'}).length %> anomalies found</h2>
+
+  <% if(_.filter(specs, {status: 'failed'}).length === 0) { %>
+  <div>
+    <div style="font-size: 3em;"
+         class="text-center">Nothing to do :)
+    </div>
+  </div>
+  <% }; %>
+
+  <% _.each(_.filter(specs, {status: 'failed'}), function(spec) { %>
+  <div style="margin-top: 20px; padding-top: 10px; border-top: 5px solid black;">
+    <div
+      class="alert alert-danger">
+      <strong><%= spec.fullName %></strong>. <%= spec.message %>
+      <!--<div class="pull-right">-->
+      <!--<label><input type="checkbox" ng-model="spec.passed"> Not an issue</label>-->
+      <!--</div>-->
+    </div>
+    <a href="<%= spec.id %>.png" data-lightbox="<%= spec.id %>">
+      <img src="<%= spec.id %>.png" width="100%">
+    </a>
+  </div>
+  <% }); %>
+
+  <div style="margin-top: 50px;"></div>
+
+  <% _.each(_.filter(specs, function(spec) { return spec != 'failed';}), function(spec) { %>
+  <div style="margin-top: 20px; padding-top: 10px; border-top: 5px solid black;">
+
+    <% if(spec.status === 'disabled') { %>
+
+    <div
+      class="alert alert-info">
+      <strong>**Skipped ** <%= spec.fullName %></strong>.
+    </div>
+
+    <% } else { %>
+
+    <div
+      class="alert alert-success">
+      <strong><%= spec.fullName %></strong>. <%= spec.message %>
+    </div>
+    <a href="<%= spec.id %>.png" data-lightbox="<%= spec.id %>">
+      <img src="<%= spec.id %>.png" width="100%">
+    </a>
+
+    <% }; %>
+  </div>
+  <% }); %>
+
+</div>
+
+</body>
+</html>

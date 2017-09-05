@@ -3,7 +3,7 @@ pdiffy
 
 ```bash
 
-npm pdiffy
+npm run pdiffy # to run the examples
 
 ```
 
@@ -11,14 +11,14 @@ Protractor test addon to visually compare the results in a flow (pdiff) of an ex
 To gain pdiffy support you have to wrap the jasmine expressions by 
 
 ```javascript 1.6
-const pdiffyFactory = require('pdiffy');
+const pdiffy = require('pdiffy');
 
-pdiffyFactory.createEnvironment(
+pdiffy.createEnvironment(
   {
-    expectedUrl: 'http://getbootstrap.com/javascript/#dropdowns'
-    actualUrl: 'http://getbootstrap.com/javascript/#dropdowns',
+    expectedUrl: 'http://your-staging-url',
+    actualUrl: 'http://your-new-feature-url',
   },
-  (pdiffy) => {
+  (pdiffyInstance) => {
   // your describe/it blocks
   }
 )
@@ -29,7 +29,7 @@ A comparison in the flow can be triggered using
 
 ```javascript 1.6
 
-pdiffy.expectSimilarity(done)
+pdiffyInstance.expectSimilarity(done)
 
 ```
 
