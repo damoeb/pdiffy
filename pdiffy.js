@@ -21,14 +21,20 @@ function nextSpec() {
   return lastSpec;
 }
 
-module.exports = {
+class pdiffy {
+
   /**
    * Install pdiffy in jasmine
    */
   install(options) {
+    this.initialOptions = options;
     // install reporter
     jasmine.getEnv().addReporter(this.createReporter(options));
-  },
+  }
+
+  options() {
+    return this.initialOptions;
+  }
 
   // see https://github.com/larrymyers/jasmine-reporters/blob/master/src/junit_reporter.js
   // @private
@@ -63,7 +69,8 @@ module.exports = {
         console.log(`Pdiffy report saved to ${outFn}`);
       }
     };
-  },
+  }
+
   /**
    * Defines pdiffy environment for the expected and actual test run
    * @param customOptions a subset of default options
@@ -79,8 +86,6 @@ module.exports = {
       const cache = {};
       const options = {};
       _.assign(options, defaultOptions, customOptions);
-
-      this.options = () => options;
 
       beforeEach(function () {
         browser.waitForAngularEnabled(options.waitForAngular);
@@ -189,3 +194,5 @@ module.exports = {
     };
   }
 };
+
+module.exports = new pdiffy();
