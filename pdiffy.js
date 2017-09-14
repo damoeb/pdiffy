@@ -25,9 +25,9 @@ module.exports = {
   /**
    * Install pdiffy in jasmine
    */
-  install(customOptions) {
+  install(options) {
     // install reporter
-    jasmine.getEnv().addReporter(this.createReporter(customOptions));
+    jasmine.getEnv().addReporter(this.createReporter(options));
   },
 
   // see https://github.com/larrymyers/jasmine-reporters/blob/master/src/junit_reporter.js
@@ -79,6 +79,8 @@ module.exports = {
       const cache = {};
       const options = {};
       _.assign(options, defaultOptions, customOptions);
+
+      this.options = () => options;
 
       beforeEach(function () {
         browser.waitForAngularEnabled(options.waitForAngular);
