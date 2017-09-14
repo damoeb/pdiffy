@@ -80,12 +80,13 @@ class pdiffy {
     environmentCount++;
     const environmentId = environmentCount;
     let expectId = 0;
+    const baseOptions = this.options();
 
     return new function () {
       const pdiffy = this;
       const cache = {};
       const options = {};
-      _.assign(options, defaultOptions, customOptions);
+      _.assign(options, baseOptions, customOptions);
 
       beforeEach(function () {
         browser.waitForAngularEnabled(options.waitForAngular);
