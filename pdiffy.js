@@ -25,9 +25,9 @@ module.exports = {
   /**
    * Install pdiffy in jasmine
    */
-  install() {
+  install(customOptions) {
     // install reporter
-    jasmine.getEnv().addReporter(this.createReporter({}));
+    jasmine.getEnv().addReporter(this.createReporter(customOptions));
   },
 
   // see https://github.com/larrymyers/jasmine-reporters/blob/master/src/junit_reporter.js
