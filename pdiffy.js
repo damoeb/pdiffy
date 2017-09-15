@@ -1,6 +1,7 @@
 const BlinkDiff = require('blink-diff');
 const _ = require('lodash');
 const fs = require('fs');
+const path = require('path');
 
 const modes = {
   preparation: '(preparation mode)',
@@ -26,10 +27,19 @@ class pdiffy {
   /**
    * Install pdiffy in jasmine
    */
-  install(options) {
-    this.initialOptions = options;
+  install(customOptions) {
+
+    const mergedOptions = _.assign({}, defaultOptions, customOptions);
+    mergedOptions.outputFolder = path.resolve(process.cwd(), mergedOptions.outputFolder);
+    // create report dir
+    if (!fs.existsSync(mergedOptions.outputFolder)){
+      fs.mkdirSync(mergedOptions.outputFolder);
+    }
+
+    this.initialOptions = mergedOptions;
+
     // install reporter
-    jasmine.getEnv().addReporter(this.createReporter(options));
+    jasmine.getEnv().addReporter(this.createReporter());
   }
 
   options() {
@@ -38,15 +48,15 @@ class pdiffy {
 
   // see https://github.com/larrymyers/jasmine-reporters/blob/master/src/junit_reporter.js
   // @private
-  createReporter(customOptions) {
-    const options = {};
-    _.assign(options, defaultOptions, customOptions);
+  createReporter() {
 
     function hasBeenExecutedInEvaluationMode(spec) {
       return spec.fullName.startsWith(modes.evaluation);
     }
 
     const specs = [];
+
+    const outputFolder = this.outputFolder;
 
     return {
       specDone(spec) {
@@ -59,9 +69,10 @@ class pdiffy {
         }
       },
       jasmineDone() {
+        console.log('Creating pdiff report');
         // generate report
-        const outFn = `${options.outputFolder}/pdiffy-report.html`;
-        const reportTemplate = fs.readFileSync('./pdiffy-report.template.html');
+        const outFn = `${outputFolder}/pdiffy-report.html`;
+        const reportTemplate = fs.readFileSync(path.resolve(__dirname, '/pdiffy-report.template.html')).toString();
 
         const specsWithId = _.map(specs, (specs, index) => { specs.id = `spec${index+1}`; return specs; });
         const report = _.template(reportTemplate)({specs: specsWithId});
@@ -87,6 +98,15 @@ class pdiffy {
       const cache = {};
       const options = {};
       _.assign(options, baseOptions, customOptions);
+      this.options = () => options;
+
+      function tryPrepare(testRunOptions, done) {
+        if (_.isFunction(baseOptions.prepare)) {
+          return baseOptions.prepare(pdiffy, testRunOptions, done);
+        } else {
+          done();
+        }
+      }
 
       beforeEach(function () {
         browser.waitForAngularEnabled(options.waitForAngular);
@@ -108,24 +128,41 @@ class pdiffy {
 
       // expected
       describe(modes.preparation, () => {
+        let testRunOptions = {isExpectedRun: true, isActualRun: false};
         beforeAll(() => {
           expectId = 0;
         });
-        beforeEach(() => {
+        if(_.isFunction(options.prepareExpectedInstance)) {
+          options.prepareExpectedInstance();
+        }
+        beforeAll(() => {
           browser.get(options.expectedUrl);
         });
-        specsFn(pdiffy);
+        beforeAll((done) => {
+          tryPrepare(testRunOptions, done)
+        });
+        specsFn(pdiffy, testRunOptions);
       });
 
       // actual
       describe(modes.evaluation, () => {
+        let testRunOptions = {isExpectedRun: false, isActualRun: true};
         beforeAll(() => {
           expectId = 0;
         });
-        beforeEach(() => {
+        beforeAll(() => {
+          browser.restartSync();
+        });
+        if(_.isFunction(options.prepareActualInstance)) {
+          options.prepareActualInstance();
+        }
+        beforeAll(() => {
           browser.get(options.actualUrl);
         });
-        specsFn(pdiffy);
+        beforeAll((done) => {
+          tryPrepare(testRunOptions, done)
+        });
+        specsFn(pdiffy, testRunOptions);
       });
 
       // @private
