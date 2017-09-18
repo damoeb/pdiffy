@@ -7,7 +7,9 @@
 
 <div style="max-width: 900px; margin: auto">
 
-  <h2><%= _.filter(specs, {status: 'failed'}).length %> anomalies found</h2>
+  <a name="failed-tests"></a>
+  <h2><%= _.filter(specs, {status: 'failed'}).length %> failed</h2>
+  <a href="#passed-tests">Show passed tests</a>
 
   <% if(_.filter(specs, {status: 'failed'}).length === 0) { %>
   <div>
@@ -22,9 +24,6 @@
     <div
       class="alert alert-danger">
       <strong><%= spec.fullName %></strong>. <%= spec.message %>
-      <!--<div class="pull-right">-->
-      <!--<label><input type="checkbox" ng-model="spec.passed"> Not an issue</label>-->
-      <!--</div>-->
     </div>
     <a href="<%= spec.id %>.png" data-lightbox="<%= spec.id %>">
       <img src="<%= spec.id %>.png" width="100%">
@@ -34,7 +33,11 @@
 
   <div style="margin-top: 50px;"></div>
 
-  <% _.each(_.filter(specs, function(spec) { return spec != 'failed';}), function(spec) { %>
+  <a name="passed-tests"></a>
+  <h2><%= _.filter(specs, function(spec) { return spec.status != 'failed';}).length %> passed</h2>
+  <a href="#failed-tests">Show failed tests</a>
+
+  <% _.each(_.filter(specs, function(spec) { return spec.status != 'failed';}), function(spec) { %>
   <div style="margin-top: 20px; padding-top: 10px; border-top: 5px solid black;">
 
     <% if(spec.status === 'disabled') { %>

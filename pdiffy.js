@@ -127,12 +127,16 @@ class pdiffy {
         jasmine.addMatchers({
           toBeIsomorph(util, customEqualityTesters) {
             return {
-              compare: function ({diff, diffResult}, {maxDifferences}) {
+              compare: function ({diff, diffResult}, {maxDifferences, version}) {
                 const passThreshold = diff.hasPassed(diffResult.code);
                 const passDifferences = options.strict && diffResult.differences <= maxDifferences;
+                let message = `${diffResult.differences} differences found`;
+                if (maxDifferences > 0) {
+                  message = `${message} (custom max-differences-threshold ${maxDifferences} for version '${version}')`;
+                }
                 return {
                   pass: passThreshold && passDifferences,
-                  message: `${diffResult.differences} differences found (max-differences threshold ${maxDifferences})`
+                  message
                 };
               }
             }
@@ -192,12 +196,13 @@ class pdiffy {
 
       /**
        * Hook to pdiffy to compare the particular state based on screenshots
-       * @param done
+       * @param thresholds to customize the allowed differences threshold for versions
+       * @param done jasmine's done function for async tests
        */
-      pdiffy.expectSimilarity = (maxDifferences, done) => {
-        let maxDifferencesArr;
-        if(!_.isArray(maxDifferences)) {
-          maxDifferencesArr = [maxDifferences];
+      pdiffy.expectSimilarity = ({thresholds, done}) => {
+        let maxDifferencesArr = [];
+        if(!_.isUndefined(thresholds) && !_.isArray(thresholds)) {
+          maxDifferencesArr = [thresholds];
         }
         const currentSpecId = expectId;
         expectId++;
