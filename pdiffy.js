@@ -2,6 +2,7 @@ const BlinkDiff = require('blink-diff');
 const _ = require('lodash');
 const fs = require('fs');
 const path = require('path');
+const childProcess = require('child_process');
 
 const modes = {
   preparation: '(preparation mode)',
@@ -21,6 +22,16 @@ function nextSpec() {
   lastSpec++;
   return lastSpec;
 }
+
+let currentVersion;
+try {
+  currentVersion = childProcess.execSync('git describe --abbrev=0 --tags').toString().trim();
+} catch(err) {
+  console.error('Cannot read current version (tag) from git. ', err);
+}
+
+console.log(`Current version: ${currentVersion}`);
+
 
 class pdiffy {
 
@@ -56,7 +67,7 @@ class pdiffy {
 
     const specs = [];
 
-    const outputFolder = this.outputFolder;
+    const outputFolder = this.initialOptions.outputFolder;
 
     return {
       specDone(spec) {
@@ -69,12 +80,15 @@ class pdiffy {
         }
       },
       jasmineDone() {
-        console.log('Creating pdiff report');
         // generate report
         const outFn = `${outputFolder}/pdiffy-report.html`;
-        const reportTemplate = fs.readFileSync(path.resolve(__dirname, '/pdiffy-report.template.html')).toString();
+        console.log('Generating pdiffy-report...');
+        const reportTemplate = fs.readFileSync(path.resolve(__dirname, 'pdiffy-report.template.html')).toString();
 
-        const specsWithId = _.map(specs, (specs, index) => { specs.id = `spec${index+1}`; return specs; });
+        const specsWithId = _.map(specs, (spec, index) => {
+          spec.id = `spec${index+1}`;
+          return spec;
+        });
         const report = _.template(reportTemplate)({specs: specsWithId});
         fs.writeFileSync(outFn, report);
         console.log(`Pdiffy report saved to ${outFn}`);
@@ -113,12 +127,12 @@ class pdiffy {
         jasmine.addMatchers({
           toBeIsomorph(util, customEqualityTesters) {
             return {
-              compare: function ({diff, diffResult}, expected) {
+              compare: function ({diff, diffResult}, {maxDifferences}) {
                 const passThreshold = diff.hasPassed(diffResult.code);
-                const passDifferences = options.strict && diffResult.differences === 0;
+                const passDifferences = options.strict && diffResult.differences <= maxDifferences;
                 return {
                   pass: passThreshold && passDifferences,
-                  message: `${diffResult.differences} differences found`
+                  message: `${diffResult.differences} differences found (max-differences threshold ${maxDifferences})`
                 };
               }
             }
@@ -180,7 +194,11 @@ class pdiffy {
        * Hook to pdiffy to compare the particular state based on screenshots
        * @param done
        */
-      pdiffy.expectSimilarity = (done) => {
+      pdiffy.expectSimilarity = (maxDifferences, done) => {
+        let maxDifferencesArr;
+        if(!_.isArray(maxDifferences)) {
+          maxDifferencesArr = [maxDifferences];
+        }
         const currentSpecId = expectId;
         expectId++;
         // wait for animations
@@ -218,8 +236,14 @@ class pdiffy {
                 if (error) {
                   throw error;
                 } else {
-                  console.log(`compare #${currentSpecId} with ${diffResult.differences} differences on environment #${environmentId}`);
-                  expect({diff, diffResult}).toBeIsomorph();
+                  const maxDifferencesForCurrentVersion = _.find(maxDifferencesArr, {version: currentVersion}) || {maxDifferences:0};
+
+                  _.each(_.without(maxDifferencesArr, maxDifferencesForCurrentVersion), (unusedThresholdForVersion) => {
+                    console.warn(`unused max-differences-threshold for version ${unusedThresholdForVersion.version}`)
+                  });
+
+                  console.log(`compare #${currentSpecId} with ${diffResult.differences}(max-differences ${maxDifferencesForCurrentVersion.maxDifferences}) differences on environment #${environmentId}`);
+                  expect({diff, diffResult}).toBeIsomorph(maxDifferencesForCurrentVersion);
 
                   done();
                 }
