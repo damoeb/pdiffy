@@ -14,6 +14,10 @@ const defaultOptions = {
   similarityThreshold: 100,
   waitForAngular: false,
   waitBeforeScreenshotTime: 500,
+  screen: {
+    width: 1200,
+    height: 800
+  },
   strict: true // fails test if differences exist independent of similarityThreshold
 };
 let environmentCount = 0;
@@ -122,6 +126,10 @@ class pdiffy {
         }
       }
 
+      function setScreenSize() {
+        browser.driver.manage().window().setSize(options.screen.width, options.screen.height);
+      }
+
       beforeEach(function () {
         browser.waitForAngularEnabled(options.waitForAngular);
         jasmine.addMatchers({
@@ -155,6 +163,7 @@ class pdiffy {
         }
         beforeAll(() => {
           browser.get(options.expectedUrl);
+          setScreenSize()
         });
         beforeAll((done) => {
           tryPrepare(testRunOptions, done)
@@ -170,6 +179,7 @@ class pdiffy {
         });
         beforeAll(() => {
           browser.restartSync();
+          setScreenSize()
         });
         if(_.isFunction(options.prepareActualInstance)) {
           options.prepareActualInstance();
@@ -244,7 +254,7 @@ class pdiffy {
                   const maxDifferencesForCurrentVersion = _.find(maxDifferencesArr, {version: currentVersion}) || {maxDifferences:0};
 
                   _.each(_.without(maxDifferencesArr, maxDifferencesForCurrentVersion), (unusedThresholdForVersion) => {
-                    console.warn(`unused max-differences-threshold for version ${unusedThresholdForVersion.version}`)
+                    console.warn(`legacy version ${unusedThresholdForVersion.version}`)
                   });
 
                   console.log(`compare #${currentSpecId} with ${diffResult.differences}(max-differences ${maxDifferencesForCurrentVersion.maxDifferences}) differences on environment #${environmentId}`);
