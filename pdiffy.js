@@ -2,7 +2,6 @@ const BlinkDiff = require('blink-diff');
 const _ = require('lodash');
 const fs = require('fs');
 const path = require('path');
-const childProcess = require('child_process');
 
 const modes = {
   preparation: '(preparation mode)',
@@ -18,6 +17,7 @@ const defaultOptions = {
     width: 1200,
     height: 800
   },
+  currentVersion: 0,
   strict: true // fails test if differences exist independent of similarityThreshold
 };
 let environmentCount = 0;
@@ -27,23 +27,12 @@ function nextSpec() {
   return lastSpec;
 }
 
-let currentVersion;
-try {
-  currentVersion = childProcess.execSync('git describe --abbrev=0 --tags').toString().trim();
-} catch(err) {
-  console.error('Cannot read current version (tag) from git. ', err);
-}
-
-console.log(`Current version: ${currentVersion}`);
-
-
 class pdiffy {
 
   /**
    * Install pdiffy in jasmine
    */
   install(customOptions) {
-
     const mergedOptions = _.assign({}, defaultOptions, customOptions);
     mergedOptions.outputFolder = path.resolve(process.cwd(), mergedOptions.outputFolder);
     // create report dir
@@ -251,7 +240,7 @@ class pdiffy {
                 if (error) {
                   throw error;
                 } else {
-                  const maxDifferencesForCurrentVersion = _.find(maxDifferencesArr, {version: currentVersion}) || {maxDifferences:0};
+                  const maxDifferencesForCurrentVersion = _.find(maxDifferencesArr, {version: this.options().currentVersion}) || {maxDifferences:0};
 
                   _.each(_.without(maxDifferencesArr, maxDifferencesForCurrentVersion), (unusedThresholdForVersion) => {
                     console.warn(`legacy version ${unusedThresholdForVersion.version}`)
